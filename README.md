@@ -10,7 +10,7 @@
 ```
 import cultureland
 
-cl=Cultureland("ID","PW")
+cl=cultureland.Cultureland("ID","PW")
 print(cl.charge("PIN-CODE"))
 print(cl.get_balance())
 ```
