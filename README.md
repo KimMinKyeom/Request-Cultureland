@@ -1,5 +1,5 @@
 # Request-Cultureland
-+ Webdriver 보다 빠르고 정확하게 처리할 수 있는 requests 모듈을 사용하여 만든 컬처랜드 유틸
+Webdriver의 리소스, 속도 등의 단점을 모두 보완할 수 있고 정확하게 처리할 수 있는 requests 모듈을 사용하여 만든 컬처랜드 유틸
 
 ## 기능
 + 로그인
