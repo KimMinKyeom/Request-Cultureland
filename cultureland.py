@@ -71,9 +71,8 @@ class Cultureland:
         if not phone:
             phone = resp['Phone']
         self.s.get('https://m.cultureland.co.kr/gft/gftPhoneApp.do')
-        money = self.get_balance()[1]
-        self.s.post('https://m.cultureland.co.kr/gft/gftPhoneCashProc.do', data={"revEmail": "", "sendType": "S", "userKey": user_key, "limitGiftBank": "N", "giftCategory": "O", "amount": str(amount), "quantity": "1", "revPhone": str(phone), "sendTitl": "", "paymentType": "cash"})
-        if self.get_balance()[1] == money - int(amount):
+        resp=self.s.post('https://m.cultureland.co.kr/gft/gftPhoneCashProc.do', data={"revEmail": "", "sendType": "S", "userKey": user_key, "limitGiftBank": "N", "giftCategory": "O", "amount": str(amount), "quantity": "1", "revPhone": str(phone), "sendTitl": "", "paymentType": "cash"})
+        if '요청하신 정보로 전송' in resp.text:
             return True
         else:
             return False
