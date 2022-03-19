@@ -5,12 +5,11 @@ from mTransKey.transkey import mTransKey
 class Cultureland:
     def __init__(self, id_, pw):
         self.s = requests.session()
-        self.cookie = ""
         self.id_ = id_
         self.pw = pw
 
     def _islogin(self):
-        resp = self.s.post("https://m.cultureland.co.kr/mmb/isLogin.json", headers={"Cookie": self.cookie})
+        resp = self.s.post("https://m.cultureland.co.kr/mmb/isLogin.json")
         if resp.text != 'true':
             return False
         else:
