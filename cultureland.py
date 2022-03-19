@@ -33,7 +33,7 @@ class Cultureland:
     def get_balance(self):
         if not self._login():
             return False,
-        resp = self.s.post("https://m.cultureland.co.kr/tgl/getBalance.json", headers={"Cookie": self.cookie})
+        resp = self.s.post("https://m.cultureland.co.kr/tgl/getBalance.json")
         result = resp.json()
         if result['resultCode'] != "0000":
             return False, result
@@ -46,13 +46,13 @@ class Cultureland:
         if len(pin) != 16 and len(pin) != 18:
             return False,
         pin = [pin[i:i + 4] if i != 12 and len(pin) > 12 else pin[i:] for i in range(0, 14, 4)]
-        self.s.get('https://m.cultureland.co.kr/csh/cshGiftCard.do', headers={"Cookie": self.cookie})
+        self.s.get('https://m.cultureland.co.kr/csh/cshGiftCard.do')
         mtk = mTransKey(self.s, "https://m.cultureland.co.kr/transkeyServlet")
         pw_pad = mtk.new_keypad("number", "txtScr14", "scr14")
         encrypted = pw_pad.encrypt_password(pin[-1])
         hm = mtk.hmac_digest(encrypted.encode())
         hm_ = mtk.hmac_digest(b'')
-        resp = self.s.post('https://m.cultureland.co.kr/csh/cshGiftCardProcess.do', headers={"Cookie": self.cookie}, data={'scr11': pin[0], 'scr12': pin[1], 'scr13': pin[2], 'scr14': '*' * len(pin[-1]), 'scr21': "", 'scr22': "", 'scr23': "", 'scr24': '', 'scr31': '', 'scr32': '', 'scr33': '', 'scr34': '', 'scr41': '', 'scr42': '', 'scr43': '', 'scr44': '', 'scr51': '', 'scr52': '', 'scr53': '', 'scr54': '', 'transkeyUuid': mtk.get_uuid(), 'transkey_txtScr14': encrypted, 'transkey_HM_txtScr14': hm, 'transkey_txtScr24': '', 'transkey_HM_txtScr24': hm_, 'transkey_txtScr34': '', 'transkey_HM_txtScr34': hm_, 'transkey_txtScr44': '', 'transkey_HM_txtScr44': hm_, 'transkey_txtScr54': '', 'transkey_HM_txtScr54': hm_})
+        resp = self.s.post('https://m.cultureland.co.kr/csh/cshGiftCardProcess.do', data={'scr11': pin[0], 'scr12': pin[1], 'scr13': pin[2], 'scr14': '*' * len(pin[-1]), 'scr21': "", 'scr22': "", 'scr23': "", 'scr24': '', 'scr31': '', 'scr32': '', 'scr33': '', 'scr34': '', 'scr41': '', 'scr42': '', 'scr43': '', 'scr44': '', 'scr51': '', 'scr52': '', 'scr53': '', 'scr54': '', 'transkeyUuid': mtk.get_uuid(), 'transkey_txtScr14': encrypted, 'transkey_HM_txtScr14': hm, 'transkey_txtScr24': '', 'transkey_HM_txtScr24': hm_, 'transkey_txtScr34': '', 'transkey_HM_txtScr34': hm_, 'transkey_txtScr44': '', 'transkey_HM_txtScr44': hm_, 'transkey_txtScr54': '', 'transkey_HM_txtScr54': hm_})
         result = resp.text.split('<td><b>')[1].split("</b></td>")[0]
         if '충전 완료' in resp.text:
             return 1, int(resp.text.split("<dd>")[1].split("원")[0].replace(",", ""))
@@ -63,8 +63,24 @@ class Cultureland:
         else:
             return 3, result
 
+    def gift(self, amount, phone=None):
+        if not self._login():
+            return False,
+        resp = self.s.post('https://m.cultureland.co.kr/tgl/flagSecCash.json').json()
+        user_key = resp['user_key']
+        if not phone:
+            phone = resp['Phone']
+        self.s.get('https://m.cultureland.co.kr/gft/gftPhoneApp.do')
+        money = self.get_balance()[1]
+        self.s.post('https://m.cultureland.co.kr/gft/gftPhoneCashProc.do', data={"revEmail": "", "sendType": "S", "userKey": user_key, "limitGiftBank": "N", "giftCategory": "O", "amount": str(amount), "quantity": "1", "revPhone": str(phone), "sendTitl": "", "paymentType": "cash"})
+        if self.get_balance()[1] == money - int(amount):
+            return True
+        else:
+            return False
+
 
 if __name__ == "__main__":
     cl = Cultureland("ID", "PW")
     print(cl.charge("PIN-CODE"))
     print(cl.get_balance())
+    print(cl.gift("금액", "전화번호(필수X)"))
