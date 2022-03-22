@@ -51,7 +51,7 @@ class mTransKey():
 
         self.qwerty = qwerty_keys
         self.number = number_keys
-    
+
     def new_keypad(self, key_type, name, inputName, fieldType = "password"):
         skip_data = self.sess.post(self.servlet_url, data={
             "op": "allocation",
@@ -67,6 +67,7 @@ class mTransKey():
         }).text
 
         skip = list(map(int, skip_data.split(",")))
+
         if key_type == "qwerty":
             return KeyPad(self.crypto, key_type, skip, self.qwerty)
         else:
