@@ -77,4 +77,4 @@ if __name__ == "__main__":
     cl = Cultureland("ID", "PW")
     print(cl.charge("PIN-CODE"))
     print(cl.get_balance())
-    print(cl.gift("금액", "전화번호(필수X)"))
+    print(cl.gift("금액", "전화번호"))
