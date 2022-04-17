@@ -45,10 +45,11 @@ class Cultureland:
         if len(pin) != 16 and len(pin) != 18:
             return False,
         pin = [pin[i:i + 4] if i != 12 and len(pin) > 12 else pin[i:] for i in range(0, 14, 4)]
-        self.s.cookies.set("appInfoConfig", '"cookieClientType=IPHONE&cookieKeepLoginYN=F"')
         self.s.get('https://m.cultureland.co.kr/csh/cshGiftCard.do')
-        resp = self.s.post('https://m.cultureland.co.kr/csh/cshGiftCardProcess.do', data={'scr11': pin[0], 'scr12': pin[1], 'scr13': pin[2], 'scr14': pin[-1], 'scr21': "", 'scr22': "", 'scr23': "", 'scr24': '', 'scr31': '', 'scr32': '', 'scr33': '', 'scr34': '', 'scr41': '', 'scr42': '', 'scr43': '', 'scr44': '', 'scr51': '', 'scr52': '', 'scr53': '', 'scr54': ''})
-        self.s.cookies.set("appInfoConfig", '"cookieClientType=MWEB&cookieKeepLoginYN=F"')
+        mtk = mTransKey(self.s, "https://m.cultureland.co.kr/transkeyServlet")
+        pin_pad = mtk.new_keypad("number", "txtScr14", "scr14")
+        encrypted = pin_pad.encrypt_password(pin[-1])
+        resp = self.s.post('https://m.cultureland.co.kr/csh/cshGiftCardProcess.do', data={'scr11': pin[0], 'scr12': pin[1], 'scr13': pin[2], 'transkeyUuid': mtk.get_uuid(), 'transkey_txtScr14': encrypted, 'transkey_HM_txtScr14': mtk.hmac_digest(encrypted.encode())})
         result = resp.text.split('<td><b>')[1].split("</b></td>")[0]
         if '충전 완료' in resp.text:
             return 1, int(resp.text.split("<dd>")[1].split("원")[0].replace(",", ""))
