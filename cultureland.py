@@ -22,8 +22,7 @@ class Cultureland:
         pw_pad = mtk.new_keypad("qwerty", "passwd", "passwd")
         encrypted = pw_pad.encrypt_password(self.pw)
         hm = mtk.hmac_digest(encrypted.encode())
-        resp = self.s.post("https://m.cultureland.co.kr/mmb/loginProcess.do", data={"agentUrl": "", "returnUrl": "", "keepLoginInfo": "", "phoneForiOS": "", "hidWebType": "other", "userId": self.id_, "passwd": "*" * len(self.pw), "transkeyUuid": mtk.get_uuid(), "transkey_passwd": encrypted, "transkey_HM_passwd": hm})
-        self.cookie = f"JSESSIONID={str(resp.cookies).split('JSESSIONID=')[1].split(' ')[0]}"
+        self.s.post("https://m.cultureland.co.kr/mmb/loginProcess.do", data={"agentUrl": "", "returnUrl": "", "keepLoginInfo": "", "phoneForiOS": "", "hidWebType": "other", "userId": self.id_, "passwd": "*" * len(self.pw), "transkeyUuid": mtk.get_uuid(), "transkey_passwd": encrypted, "transkey_HM_passwd": hm})
         if self._islogin():
             return True
         else:
@@ -45,6 +44,7 @@ class Cultureland:
         if len(pin) != 16 and len(pin) != 18:
             return False,
         pin = [pin[i:i + 4] if i != 12 and len(pin) > 12 else pin[i:] for i in range(0, 14, 4)]
+        self.s.cookies.set("appInfoConfig", '"cookieClientType=IPHONE&cookieKeepLoginYN=F"')
         self.s.get('https://m.cultureland.co.kr/csh/cshGiftCard.do')
         mtk = mTransKey(self.s, "https://m.cultureland.co.kr/transkeyServlet")
         pin_pad = mtk.new_keypad("number", "txtScr14", "scr14")
@@ -68,7 +68,7 @@ class Cultureland:
         if not phone:
             phone = resp['Phone']
         self.s.get('https://m.cultureland.co.kr/gft/gftPhoneApp.do')
-        resp=self.s.post('https://m.cultureland.co.kr/gft/gftPhoneCashProc.do', data={"revEmail": "", "sendType": "S", "userKey": user_key, "limitGiftBank": "N", "giftCategory": "O", "amount": str(amount), "quantity": "1", "revPhone": str(phone), "sendTitl": "", "paymentType": "cash"})
+        resp = self.s.post('https://m.cultureland.co.kr/gft/gftPhoneCashProc.do', data={"revEmail": "", "sendType": "S", "userKey": user_key, "limitGiftBank": "N", "giftCategory": "O", "amount": str(amount), "quantity": "1", "revPhone": str(phone), "sendTitl": "", "paymentType": "cash"})
         if '요청하신 정보로 전송' in resp.text:
             return True
         else:
@@ -79,4 +79,4 @@ if __name__ == "__main__":
     cl = Cultureland("ID", "PW")
     print(cl.charge("PIN-CODE"))
     print(cl.get_balance())
-    print(cl.gift("금액", "전화번호(필수X)"))
+    print(cl.gift("금액", "전화번호"))
