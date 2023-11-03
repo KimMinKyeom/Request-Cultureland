@@ -3,79 +3,109 @@ from mTransKey.transkey import mTransKey
 
 
 class Cultureland:
-    def __init__(self, id_, pw):
-        self.s = requests.session()
-        self.id_ = id_
-        self.pw = pw
+    def __init__(self, user_id, password):
+        self.session = requests.session()
+        self.user_id = user_id
+        self.password = password
 
-    def _islogin(self):
-        resp = self.s.post("https://m.cultureland.co.kr/mmb/isLogin.json")
-        if resp.text != 'true':
-            return False
-        else:
-            return True
+    def _is_logged_in(self):
+        response = self.session.post("https://m.cultureland.co.kr/mmb/isLogin.json")
+        return response.text == 'true'
 
     def _login(self):
-        if self._islogin():
+        if self._is_logged_in():
             return True
-        mtk = mTransKey(self.s, "https://m.cultureland.co.kr/transkeyServlet")
-        pw_pad = mtk.new_keypad("qwerty", "passwd", "passwd")
-        encrypted = pw_pad.encrypt_password(self.pw)
-        hm = mtk.hmac_digest(encrypted.encode())
-        self.s.post("https://m.cultureland.co.kr/mmb/loginProcess.do", data={"agentUrl": "", "returnUrl": "", "keepLoginInfo": "", "phoneForiOS": "", "hidWebType": "other", "userId": self.id_, "passwd": "*" * len(self.pw), "transkeyUuid": mtk.get_uuid(), "transkey_passwd": encrypted, "transkey_HM_passwd": hm})
-        if self._islogin():
-            return True
-        else:
-            return False
+
+        trans_key = mTransKey(self.session, "https://m.cultureland.co.kr/transkeyServlet")
+        password_pad = trans_key.new_keypad("qwerty", "passwd", "passwd")
+        encrypted_password = password_pad.encrypt_password(self.password)
+        hmac_value = trans_key.hmac_digest(encrypted_password.encode())
+
+        data = {
+            "agentUrl": "",
+            "returnUrl": "",
+            "keepLoginInfo": "",
+            "phoneForiOS": "",
+            "hidWebType": "other",
+            "userId": self.user_id,
+            "passwd": "*" * len(self.password),
+            "transkeyUuid": trans_key.get_uuid(),
+            "transkey_passwd": encrypted_password,
+            "transkey_HM_passwd": hmac_value
+        }
+        self.session.post("https://m.cultureland.co.kr/mmb/loginProcess.do", data=data)
+        return self._is_logged_in()
 
     def get_balance(self):
         if not self._login():
             return False,
-        resp = self.s.post("https://m.cultureland.co.kr/tgl/getBalance.json")
-        result = resp.json()
+        response = self.session.post("https://m.cultureland.co.kr/tgl/getBalance.json")
+        result = response.json()
         if result['resultCode'] != "0000":
             return False, result
-        return True, int(result['blnAmt']), int(result['bnkAmt'])  # (True, 사용가능, 보광중)
+        return True, int(result['blnAmt']), int(result['bnkAmt'])
 
     def charge(self, pin):
         if not self._login():
             return False,
+
         pin = re.sub(r'[^0-9]', '', pin)
-        if len(pin) != 16 and len(pin) != 18:
+        if len(pin) not in [16, 18]:
             return False,
-        pin = [pin[i:i + 4] if i != 12 and len(pin) > 12 else pin[i:] for i in range(0, 14, 4)]
-        self.s.get('https://m.cultureland.co.kr/csh/cshGiftCard.do')
-        mtk = mTransKey(self.s, "https://m.cultureland.co.kr/transkeyServlet")
-        pin_pad = mtk.new_keypad("number", "txtScr14", "scr14")
-        encrypted = pin_pad.encrypt_password(pin[-1])
-        resp = self.s.post('https://m.cultureland.co.kr/csh/cshGiftCardProcess.do', data={'scr11': pin[0], 'scr12': pin[1], 'scr13': pin[2], 'transkeyUuid': mtk.get_uuid(), 'transkey_txtScr14': encrypted, 'transkey_HM_txtScr14': mtk.hmac_digest(encrypted.encode())})
-        result = resp.text.split('<td><b>')[1].split("</b></td>")[0]
-        if '충전 완료' in resp.text:
-            return 1, int(resp.text.split("<dd>")[1].split("원")[0].replace(",", ""))
-        elif result in ['이미 등록된 문화상품권', '상품권 번호 불일치']:
-            return 0, result
-        elif '등록제한(10번 등록실패)' in result:
+
+        pin_segments = [pin[i:i + 4] if i != 12 and len(pin) > 12 else pin[i:] for i in range(0, 14, 4)]
+        self.session.get('https://m.cultureland.co.kr/csh/cshGiftCard.do')
+
+        trans_key = mTransKey(self.session, "https://m.cultureland.co.kr/transkeyServlet")
+        pin_pad = trans_key.new_keypad("number", "txtScr14", "scr14")
+        encrypted_pin = pin_pad.encrypt_password(pin_segments[-1])
+
+        data = {
+            'scr11': pin_segments[0],
+            'scr12': pin_segments[1],
+            'scr13': pin_segments[2],
+            'transkeyUuid': trans_key.get_uuid(),
+            'transkey_txtScr14': encrypted_pin,
+            'transkey_HM_txtScr14': trans_key.hmac_digest(encrypted_pin.encode())
+        }
+        response = self.session.post('https://m.cultureland.co.kr/csh/cshGiftCardProcess.do', data=data)
+        charge_result = response.text.split('<td><b>')[1].split("</b></td>")[0]
+        if '충전 완료' in response.text:
+            return 1, int(response.text.split("<dd>")[1].split("원")[0].replace(",", ""))
+        elif charge_result in ['이미 등록된 문화상품권', '상품권 번호 불일치']:
+            return 0, charge_result
+        elif '등록제한(10번 등록실패)' in charge_result:
             return 2, '등록제한'
         else:
-            return 3, result
+            return 3, charge_result
 
-    def gift(self, amount, phone=None):
+    def gift(self, amount, recipient_phone=None):
         if not self._login():
             return False,
-        resp = self.s.post('https://m.cultureland.co.kr/tgl/flagSecCash.json').json()
-        user_key = resp['user_key']
-        if not phone:
-            phone = resp['Phone']
-        self.s.get('https://m.cultureland.co.kr/gft/gftPhoneApp.do')
-        resp = self.s.post('https://m.cultureland.co.kr/gft/gftPhoneCashProc.do', data={"revEmail": "", "sendType": "S", "userKey": user_key, "limitGiftBank": "N", "giftCategory": "O", "amount": str(amount), "quantity": "1", "revPhone": str(phone), "sendTitl": "", "paymentType": "cash"})
-        if '요청하신 정보로 전송' in resp.text:
-            return True
-        else:
-            return False
+        response = self.session.post('https://m.cultureland.co.kr/tgl/flagSecCash.json').json()
+        user_key = response['user_key']
+        if not recipient_phone:
+            recipient_phone = response['Phone']
+
+        self.session.get('https://m.cultureland.co.kr/gft/gftPhoneApp.do')
+        data = {
+            "revEmail": "",
+            "sendType": "S",
+            "userKey": user_key,
+            "limitGiftBank": "N",
+            "giftCategory": "O",
+            "amount": str(amount),
+            "quantity": "1",
+            "revPhone": str(recipient_phone),
+            "sendTitl": "",
+            "paymentType": "cash"
+        }
+        response = self.session.post('https://m.cultureland.co.kr/gft/gftPhoneCashProc.do', data=data)
+        return '요청하신 정보로 전송' in response.text
 
 
 if __name__ == "__main__":
-    cl = Cultureland("ID", "PW")
-    print(cl.charge("PIN-CODE"))
-    print(cl.get_balance())
-    print(cl.gift("금액", "전화번호"))
+    culture_land = Cultureland("USER_ID", "USER_PASSWORD")
+    print(culture_land.charge("PIN_CODE"))
+    print(culture_land.get_balance())
+    print(culture_land.gift("AMOUNT", "PHONE_NUMBER"))
